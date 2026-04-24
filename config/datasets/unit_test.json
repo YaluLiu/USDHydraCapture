@@ -1,0 +1,19 @@
+{
+  "resolution": {
+    "width": 1280,
+    "height": 720
+  },
+  "baseline_dir": "/home/yalu/hydra/hydra_capture/resources/baseline/unit_test",
+  "output_dir": "/home/yalu/hydra/hydra_capture/resources/output/unit_test",
+  "files":{
+    "root_dir": "/home/yalu/docker/assets/unit_test",
+    "relative_path": [
+      "anim/pao/pao.usd",
+      "pbr/depth/compound pendulum.usd",
+      "pbr/redbox/redbox_right.usd",
+      "single/beautyball/mesh_output_1752142189.usdc",
+      "single/cat/mesh_output_1752057675.usdc",
+      "single/four_box/mesh_output_1761207339.usdc"
+    ]
+  }
+}

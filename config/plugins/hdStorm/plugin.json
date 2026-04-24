@@ -1,0 +1,34 @@
+{
+  "name": "hdStorm",
+  "renderer_plugin": "HdStormRendererPlugin",
+  "defaults": {
+    "aovs": ["color", "depth", "primId"],
+    "settings": {
+      "enableSceneMaterials": true,
+      "enableSceneLights": true
+    }
+  },
+  "aovs": {
+    "color": {
+      "output_ext": ".png",
+      "compare": {
+        "enabled": true,
+        "max_diff_ratio": 0.0
+      }
+    },
+    "depth": {
+      "output_ext": ".ppm",
+      "compare": {
+        "enabled": true,
+        "max_diff_ratio": 0.0
+      }
+    },
+    "primId": {
+      "output_ext": ".ppm",
+      "compare": {
+        "enabled": true,
+        "max_diff_ratio": 0.0
+      }
+    }
+  }
+}

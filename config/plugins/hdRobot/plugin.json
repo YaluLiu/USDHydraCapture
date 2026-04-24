@@ -1,0 +1,15 @@
+{
+  "name": "hdRobot",
+  "renderer_plugin": "HdRobotRendererPlugin",
+  "defaults": {
+    "aovs": ["color", "depth", "primId", "lidar:pointCloud"],
+    "aovs_file": "aovs.json",
+    "settings": {
+      "spp": 4,
+      "dlss-rr-denoise": true,
+      "dlss-sr-enable": true,
+      "dlss-sr-scale": 0.6,
+      "lidar-enable": true
+    }
+  }
+}

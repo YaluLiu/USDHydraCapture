@@ -1,0 +1,23 @@
+# Build artifacts
+build/
+cmake-build-*/
+
+# Graph cache/output
+graphify-out/
+
+# Runtime output images
+resources/baseline/
+resources/output/
+resources/tests/
+resources/usd/
+media/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Python cache
+__pycache__/
+
+task.md
