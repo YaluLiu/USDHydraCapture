@@ -16,6 +16,7 @@ add_executable(hydra_capture
     src/aov_output.cpp
     src/hydra_capture.cpp
     src/options.cpp
+    src/renderer_settings.cpp
     src/renderer_config.cpp
 )
 
@@ -46,6 +47,7 @@ add_executable(hydra_capture_unit_tests
     src/aov_output.cpp
     src/options.cpp
     src/renderer_config.cpp
+    src/renderer_settings.cpp
     tests/test_cli_config_paths.cpp
 )
 
@@ -55,9 +57,19 @@ target_include_directories(hydra_capture_unit_tests PRIVATE
 )
 
 target_link_libraries(hydra_capture_unit_tests PRIVATE
+    cameraUtil
+    gf
+    glf
+    hd
     js
+    sdf
     tf
+    usd
+    usdGeom
+    usdImagingGL
     vt
+    OpenGL::GL
+    ${CMAKE_DL_LIBS}
 )
 
 if(WIN32)

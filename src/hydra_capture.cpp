@@ -1,15 +1,19 @@
 #include "aov_output.h"
 #include "options.h"
 #include "renderer_config.h"
+#include "renderer_settings.h"
 
 #include "pxr/pxr.h"
 
 #include "pxr/base/gf/half.h"
+#include "pxr/base/gf/camera.h"
+#include "pxr/base/gf/frustum.h"
+#include "pxr/base/gf/range1f.h"
+#include "pxr/base/gf/range3d.h"
 #include "pxr/base/gf/rect2i.h"
 #include "pxr/base/gf/vec2i.h"
-#include "pxr/base/js/value.h"
+#include "pxr/base/gf/vec3d.h"
 #include "pxr/base/tf/token.h"
-#include "pxr/base/vt/value.h"
 #include "pxr/imaging/cameraUtil/framing.h"
 #include "pxr/imaging/glf/glContext.h"
 #include "pxr/imaging/glf/testGLContext.h"
@@ -21,8 +25,10 @@
 #include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/primRange.h"
 #include "pxr/usd/usd/stage.h"
+#include "pxr/usd/usdGeom/bboxCache.h"
 #include "pxr/usd/usdGeom/camera.h"
 #include "pxr/usd/usdGeom/imageable.h"
+#include "pxr/usd/usdGeom/tokens.h"
 #include "pxr/usdImaging/usdImagingGL/engine.h"
 #include "pxr/usdImaging/usdImagingGL/renderParams.h"
 
@@ -35,7 +41,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -591,66 +596,45 @@ bool MakeGLContextCurrent(PlatformGLContext* outContext) {
 #endif
 }
 
-VtValue ConvertJsonSettingValue(
-    const JsValue& value,
-    const VtValue* descriptorDefaultValue) {
-    if (value.IsBool()) {
-        return VtValue(value.GetBool());
-    }
-    if (value.IsInt()) {
-        if (descriptorDefaultValue && descriptorDefaultValue->IsHolding<float>()) {
-            return VtValue(static_cast<float>(value.GetInt()));
-        }
-        if (descriptorDefaultValue && descriptorDefaultValue->IsHolding<double>()) {
-            return VtValue(static_cast<double>(value.GetInt()));
-        }
-        return VtValue(value.GetInt());
-    }
-    if (value.IsReal()) {
-        if (descriptorDefaultValue && descriptorDefaultValue->IsHolding<float>()) {
-            return VtValue(static_cast<float>(value.GetReal()));
-        }
-        return VtValue(value.GetReal());
-    }
-    if (value.IsString()) {
-        if (descriptorDefaultValue && descriptorDefaultValue->IsHolding<TfToken>()) {
-            return VtValue(TfToken(value.GetString()));
-        }
-        return VtValue(value.GetString());
-    }
-    return VtValue();
-}
-
-bool ApplyRendererSettings(
+void SetDefaultCameraState(
     UsdImagingGLEngine* engine,
-    const std::map<std::string, JsValue>& settings) {
-    if (!engine) {
-        return false;
+    const UsdStageRefPtr& stage,
+    int width,
+    int height) {
+    const float aspectRatio =
+        height > 0 ? static_cast<float>(width) / static_cast<float>(height) : 1.0f;
+
+    GfRange3d range;
+    if (stage) {
+        UsdGeomBBoxCache bboxCache(
+            UsdTimeCode::Default(),
+            { UsdGeomTokens->default_, UsdGeomTokens->proxy, UsdGeomTokens->render });
+        range = bboxCache.ComputeWorldBound(stage->GetPseudoRoot()).ComputeAlignedRange();
     }
 
-    const UsdImagingGLRendererSettingsList descriptors =
-        engine->GetRendererSettingsList();
-    for (const auto& setting : settings) {
-        const TfToken key(setting.first);
-        const VtValue* defaultValue = nullptr;
-        for (const UsdImagingGLRendererSetting& descriptor : descriptors) {
-            if (descriptor.key == key) {
-                defaultValue = &descriptor.defValue;
-                break;
-            }
-        }
-
-        VtValue converted = ConvertJsonSettingValue(setting.second, defaultValue);
-        if (converted.IsEmpty()) {
-            std::cerr << "Unsupported renderer setting type for key '"
-                      << setting.first << "': " << setting.second.GetTypeName()
-                      << "\n";
-            return false;
-        }
-        engine->SetRendererSetting(key, converted);
+    GfVec3d center(0.0, 0.0, 0.0);
+    double radius = 1.0;
+    if (!range.IsEmpty()) {
+        center = range.GetMidpoint();
+        const GfVec3d size = range.GetSize();
+        radius = std::max({ size[0], size[1], size[2], 1.0 }) * 0.5;
     }
 
-    return true;
+    constexpr double kPi = 3.14159265358979323846;
+    const double distance = radius / std::tan(22.5 * kPi / 180.0) + radius;
+    GfCamera camera;
+    camera.SetPerspectiveFromAspectRatioAndFieldOfView(
+        aspectRatio,
+        45.0f,
+        GfCamera::FOVVertical);
+    camera.SetClippingRange(GfRange1f(0.1f, static_cast<float>(distance + radius * 4.0)));
+    camera.SetTransform(
+        GfMatrix4d(1.0).SetTranslate(center + GfVec3d(0.0, 0.0, distance)));
+
+    const GfFrustum frustum = camera.GetFrustum();
+    engine->SetCameraState(
+        frustum.ComputeViewMatrix(),
+        frustum.ComputeProjectionMatrix());
 }
 
 }  // namespace
@@ -713,6 +697,7 @@ int main(int argc, char** argv) {
     }
 
     SdfPath cameraPath;
+    bool useSceneCamera = false;
     if (!options.cameraPath.empty()) {
         cameraPath = SdfPath(options.cameraPath);
         if (!cameraPath.IsAbsolutePath()) {
@@ -725,16 +710,13 @@ int main(int argc, char** argv) {
                       << options.cameraPath << "\n";
             return EXIT_FAILURE;
         }
+        useSceneCamera = true;
     } else {
         cameraPath = FindFirstCameraPath(stage);
-        if (cameraPath.IsEmpty()) {
-            std::cerr
-                << "No camera found on stage and --camera was not provided.\n";
-            return EXIT_FAILURE;
+        if (!cameraPath.IsEmpty()) {
+            useSceneCamera = true;
         }
     }
-
-    std::cout << "Using camera: " << cameraPath.GetString() << "\n";
 
     UsdImagingGLEngine engine;
     const TfToken rendererPlugin(rendererConfig.rendererPlugin);
@@ -765,7 +747,13 @@ int main(int argc, char** argv) {
     }
 
     engine.SetEnablePresentation(false);
-    engine.SetCameraPath(cameraPath);
+    if (useSceneCamera) {
+        engine.SetCameraPath(cameraPath);
+        std::cout << "Using camera: " << cameraPath.GetString() << "\n";
+    } else {
+        SetDefaultCameraState(&engine, stage, options.width, options.height);
+        std::cout << "Using generated default camera.\n";
+    }
     engine.SetRenderBufferSize(GfVec2i(options.width, options.height));
     engine.SetFraming(
         CameraUtilFraming(GfRect2i(GfVec2i(0, 0), options.width, options.height)));

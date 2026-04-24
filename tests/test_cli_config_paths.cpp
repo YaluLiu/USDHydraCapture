@@ -1,10 +1,13 @@
 #include "aov_output.h"
 #include "options.h"
 #include "renderer_config.h"
+#include "renderer_settings.h"
 
 #include <cassert>
 #include <filesystem>
 #include <fstream>
+#include <pxr/base/tf/token.h>
+#include <pxr/base/vt/value.h>
 #include <string>
 #include <vector>
 
@@ -148,6 +151,27 @@ void TestAovDefaultsExtensionsAndPaths() {
     assert(path == std::filesystem::path("/tmp/hydra_capture/redbox_right/lidar_pointCloud.exr"));
 }
 
+void TestRendererSettingConversionUsesDescriptorTypes() {
+    const pxr::VtValue floatDefault(1.0f);
+    const pxr::VtValue tokenDefault(pxr::TfToken("default"));
+
+    const pxr::VtValue boolValue = ConvertJsonSettingValue(pxr::JsValue(true), nullptr);
+    assert(boolValue.IsHolding<bool>());
+    assert(boolValue.UncheckedGet<bool>());
+
+    const pxr::VtValue intValue = ConvertJsonSettingValue(pxr::JsValue(4), nullptr);
+    assert(intValue.IsHolding<int>());
+    assert(intValue.UncheckedGet<int>() == 4);
+
+    const pxr::VtValue floatValue = ConvertJsonSettingValue(pxr::JsValue(0.5), &floatDefault);
+    assert(floatValue.IsHolding<float>());
+    assert(floatValue.UncheckedGet<float>() == 0.5f);
+
+    const pxr::VtValue tokenValue = ConvertJsonSettingValue(pxr::JsValue("tokenValue"), &tokenDefault);
+    assert(tokenValue.IsHolding<pxr::TfToken>());
+    assert(tokenValue.UncheckedGet<pxr::TfToken>() == pxr::TfToken("tokenValue"));
+}
+
 }  // namespace
 
 int main() {
@@ -156,5 +180,6 @@ int main() {
     TestRendererConfigJson();
     TestRendererConfigErrorsNamePathKeyAndType();
     TestAovDefaultsExtensionsAndPaths();
+    TestRendererSettingConversionUsesDescriptorTypes();
     return 0;
 }
