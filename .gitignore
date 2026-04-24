@@ -6,11 +6,9 @@ cmake-build-*/
 graphify-out/
 
 # Runtime output images
-resources/baseline/
-resources/output/
-resources/tests/
-resources/usd/
+resources/
 media/
+output/
 
 # OS / editor
 .DS_Store
