@@ -433,19 +433,12 @@ bool WriteImage(
         if (image->Write(spec)) {
             return true;
         }
-        std::cerr << "Hio failed to write " << outputPath
-                  << ", falling back to PPM.\n";
-    } else {
-        std::cerr << "No Hio writer for " << outputPath
-                  << ", falling back to PPM.\n";
-    }
-
-    const std::string ppmFallback = outputPath + ".ppm";
-    if (!WritePPM(ppmFallback, width, height, rgbaPixels)) {
+        std::cerr << "Hio failed to write " << outputPath << "\n";
         return false;
     }
-    std::cout << "Saved fallback image: " << ppmFallback << "\n";
-    return true;
+
+    std::cerr << "No Hio writer for " << outputPath << "\n";
+    return false;
 }
 
 struct PlatformGLContext {
