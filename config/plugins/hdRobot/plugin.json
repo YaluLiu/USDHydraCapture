@@ -3,6 +3,7 @@
   "renderer_plugin": "HdRobotRendererPlugin",
   "defaults": {
     "aovs": ["color", "depth", "primId", "lidar:pointCloud"],
+    "maxIterations": 1,
     "settings": {
       "spp": 4,
       "dlss-rr-denoise": true,
