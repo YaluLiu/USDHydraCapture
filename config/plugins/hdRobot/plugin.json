@@ -3,13 +3,42 @@
   "renderer_plugin": "HdRobotRendererPlugin",
   "defaults": {
     "aovs": ["color", "depth", "primId", "lidar:pointCloud"],
-    "aovs_file": "aovs.json",
     "settings": {
       "spp": 4,
       "dlss-rr-denoise": true,
       "dlss-sr-enable": true,
       "dlss-sr-scale": 0.6,
       "lidar-enable": true
+    }
+  },
+  "aovs": {
+    "color": {
+      "output_ext": ".png",
+      "compare": {
+        "enabled": true,
+        "max_diff_ratio": 0.001
+      }
+    },
+    "depth": {
+      "output_ext": ".ppm",
+      "compare": {
+        "enabled": true,
+        "max_diff_ratio": 0.001
+      }
+    },
+    "primId": {
+      "output_ext": ".ppm",
+      "compare": {
+        "enabled": true,
+        "max_diff_ratio": 0.0
+      }
+    },
+    "lidar:pointCloud": {
+      "output_ext": ".exr",
+      "compare": {
+        "enabled": false,
+        "max_diff_ratio": 0.0
+      }
     }
   }
 }
