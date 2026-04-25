@@ -4,8 +4,6 @@
   "defaults": {
     "aovs": ["color", "depth", "primId"],
     "settings": {
-      "enableSceneMaterials": true,
-      "enableSceneLights": true
     }
   },
   "aovs": {
