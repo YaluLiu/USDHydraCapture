@@ -1,0 +1,11 @@
+{
+  "renderer_config": "config/plugins/hdRobot/plugin.json",
+  "dataset_config": "config/datasets/windows.json",
+  "hydra_capture": "build-codex/Release/hydra_capture.exe",
+  "resolution": {
+    "width": 3840,
+    "height": 2160
+  },
+  "baseline_dir": "output/baseline/windows/hdRobot",
+  "output_dir": "output/test/windows/hdRobot"
+}
