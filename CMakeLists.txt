@@ -77,5 +77,6 @@ if(WIN32)
         user32
         gdi32
     )
-    target_compile_definitions(hydra_capture PRIVATE NOMINMAX)
+    target_compile_definitions(hydra_capture PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_compile_definitions(hydra_capture_unit_tests PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()

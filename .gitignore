@@ -1,5 +1,6 @@
 # Build artifacts
 build/
+build-codex/
 cmake-build-*/
 
 # Graph cache/output

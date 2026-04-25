@@ -6,7 +6,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tools.hydra_batch import comparison
 from tools.hydra_batch import runner
+from tools.hydra_batch import test_config
+from tools.hydra_batch import workflow
 
 
 class HydraBatchTests(unittest.TestCase):
@@ -38,6 +41,176 @@ class HydraBatchTests(unittest.TestCase):
                 "lidar:pointCloud": {"output_ext": ".exr"},
             },
         }
+
+    def test_loads_test_config_for_hydra_plugin_workflow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            test_config_path = self.write_json(
+                tmp_path,
+                "windows.json",
+                {
+                    "renderer_config": "config/plugins/hdRobot/plugin.json",
+                    "dataset_config": "config/datasets/windows.json",
+                    "hydra_capture": "build-codex/Release/hydra_capture.exe",
+                    "resolution": {"width": 3840, "height": 2160},
+                    "baseline_dir": "output/baseline/windows/hdRobot",
+                    "output_dir": "output/test/windows/hdRobot",
+                    "max_iterations": 2,
+                },
+            )
+
+            config = test_config.load_test_config(test_config_path)
+
+            self.assertEqual(config.renderer_config_path, Path("config/plugins/hdRobot/plugin.json"))
+            self.assertEqual(config.dataset_config_path, Path("config/datasets/windows.json"))
+            self.assertEqual(config.hydra_capture_path, Path("build-codex/Release/hydra_capture.exe"))
+            self.assertEqual(config.width, 3840)
+            self.assertEqual(config.height, 2160)
+            self.assertEqual(config.baseline_dir, Path("output/baseline/windows/hdRobot"))
+            self.assertEqual(config.output_dir, Path("output/test/windows/hdRobot"))
+            self.assertEqual(config.max_iterations, 2)
+
+    def test_compare_case_outputs_uses_renderer_compare_rules(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            renderer_path = self.write_json(tmp_path, "plugin.json", self.renderer_json())
+            baseline_case = runner.CasePlan(
+                usd_path=tmp_path / "assets/scene.usd",
+                output_dir=tmp_path / "baseline",
+                renderer_config_path=renderer_path,
+                hydra_capture_path=tmp_path / "hydra_capture",
+                width=64,
+                height=32,
+                aovs=["color", "depth", "lidar:pointCloud"],
+                output_exts={"color": ".png", "lidar:pointCloud": ".exr"},
+                max_iterations=None,
+            )
+            test_case = runner.CasePlan(
+                usd_path=baseline_case.usd_path,
+                output_dir=tmp_path / "output",
+                renderer_config_path=renderer_path,
+                hydra_capture_path=baseline_case.hydra_capture_path,
+                width=baseline_case.width,
+                height=baseline_case.height,
+                aovs=baseline_case.aovs,
+                output_exts=baseline_case.output_exts,
+                max_iterations=None,
+            )
+            for path in runner.expected_output_paths(baseline_case):
+                path.parent.mkdir(parents=True, exist_ok=True)
+            for path in runner.expected_output_paths(test_case):
+                path.parent.mkdir(parents=True, exist_ok=True)
+
+            (tmp_path / "baseline/scene/color.png").write_bytes(b"same")
+            (tmp_path / "output/scene/color.png").write_bytes(b"same")
+            (tmp_path / "baseline/scene/depth.ppm").write_bytes(b"aaaa")
+            (tmp_path / "output/scene/depth.ppm").write_bytes(b"aaab")
+
+            report = comparison.compare_case_outputs(
+                baseline_case,
+                test_case,
+                renderer_config_path=renderer_path,
+            )
+
+            self.assertEqual(report.exit_code, 1)
+            by_aov = {result.aov: result for result in report.results}
+            self.assertTrue(by_aov["color"].success)
+            self.assertFalse(by_aov["depth"].success)
+            self.assertGreater(by_aov["depth"].diff_ratio, 0.0)
+            self.assertTrue(by_aov["lidar:pointCloud"].success)
+            self.assertTrue(by_aov["lidar:pointCloud"].skipped)
+
+    def test_workflow_renders_baseline_from_test_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            dataset_path = self.write_json(
+                tmp_path,
+                "dataset.json",
+                {"root_dir": str(tmp_path / "assets"), "relative_path": ["scene.usd"]},
+            )
+            renderer_path = self.write_json(
+                tmp_path,
+                "plugin.json",
+                {
+                    "defaults": {"aovs": ["color"], "maxIterations": 3},
+                    "aovs": {"color": {"output_ext": ".png"}},
+                },
+            )
+            test_config_path = self.write_json(
+                tmp_path,
+                "windows.json",
+                {
+                    "renderer_config": str(renderer_path),
+                    "dataset_config": str(dataset_path),
+                    "hydra_capture": str(tmp_path / "hydra_capture"),
+                    "resolution": {"width": 3840, "height": 2160},
+                    "baseline_dir": str(tmp_path / "baseline"),
+                    "output_dir": str(tmp_path / "output"),
+                },
+            )
+
+            def fake_runner(command, **_kwargs):
+                self.assertIn(str(tmp_path / "baseline"), command)
+                output_file = tmp_path / "baseline/scene/color.png"
+                output_file.parent.mkdir(parents=True, exist_ok=True)
+                output_file.write_bytes(b"baseline")
+                return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+            report = workflow.render_baseline(
+                test_config_path,
+                subprocess_runner=fake_runner,
+            )
+
+            self.assertEqual(report.exit_code, 0)
+            self.assertTrue((tmp_path / "baseline/scene/color.png").is_file())
+
+    def test_workflow_renders_test_output_and_compares_to_baseline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            dataset_path = self.write_json(
+                tmp_path,
+                "dataset.json",
+                {"root_dir": str(tmp_path / "assets"), "relative_path": ["scene.usd"]},
+            )
+            renderer_path = self.write_json(
+                tmp_path,
+                "plugin.json",
+                {
+                    "defaults": {"aovs": ["color"]},
+                    "aovs": {"color": {"output_ext": ".png", "compare": {"enabled": True, "max_diff_ratio": 0.0}}},
+                },
+            )
+            test_config_path = self.write_json(
+                tmp_path,
+                "windows.json",
+                {
+                    "renderer_config": str(renderer_path),
+                    "dataset_config": str(dataset_path),
+                    "hydra_capture": str(tmp_path / "hydra_capture"),
+                    "resolution": {"width": 3840, "height": 2160},
+                    "baseline_dir": str(tmp_path / "baseline"),
+                    "output_dir": str(tmp_path / "output"),
+                },
+            )
+            baseline_file = tmp_path / "baseline/scene/color.png"
+            baseline_file.parent.mkdir(parents=True, exist_ok=True)
+            baseline_file.write_bytes(b"same")
+
+            def fake_runner(command, **_kwargs):
+                self.assertIn(str(tmp_path / "output"), command)
+                output_file = tmp_path / "output/scene/color.png"
+                output_file.parent.mkdir(parents=True, exist_ok=True)
+                output_file.write_bytes(b"same")
+                return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+            report = workflow.render_test_and_compare(
+                test_config_path,
+                subprocess_runner=fake_runner,
+            )
+
+            self.assertEqual(report.exit_code, 0)
+            self.assertEqual(report.render_report.exit_code, 0)
+            self.assertEqual(report.compare_report.exit_code, 0)
 
     def test_loads_configs_and_expands_dataset_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -106,11 +279,15 @@ class HydraBatchTests(unittest.TestCase):
             )
 
     def test_builds_hydra_capture_command_with_overrides(self):
+        hydra_capture_path = Path("build-codex/hydra_capture")
+        renderer_config_path = Path("config/plugins/hdStorm/plugin.json")
+        usd_path = Path("/assets/scene.usd")
+        output_dir = Path("/tmp/output")
         case = runner.CasePlan(
-            usd_path=Path("/assets/scene.usd"),
-            output_dir=Path("/tmp/output"),
-            renderer_config_path=Path("config/plugins/hdStorm/plugin.json"),
-            hydra_capture_path=Path("build-codex/hydra_capture"),
+            usd_path=usd_path,
+            output_dir=output_dir,
+            renderer_config_path=renderer_config_path,
+            hydra_capture_path=hydra_capture_path,
             width=320,
             height=180,
             aovs=["color"],
@@ -121,13 +298,13 @@ class HydraBatchTests(unittest.TestCase):
         self.assertEqual(
             runner.build_command(case),
             [
-                "build-codex/hydra_capture",
+                str(hydra_capture_path),
                 "--renderer-config",
-                "config/plugins/hdStorm/plugin.json",
+                str(renderer_config_path),
                 "--usd",
-                "/assets/scene.usd",
+                str(usd_path),
                 "--output-dir",
-                "/tmp/output",
+                str(output_dir),
                 "--width",
                 "320",
                 "--height",
