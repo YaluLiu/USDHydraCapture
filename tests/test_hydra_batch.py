@@ -13,6 +13,20 @@ from tools.hydra_batch import workflow
 
 
 class HydraBatchTests(unittest.TestCase):
+    def test_run_script_uses_shared_dimensions_and_batch_entrypoint(self):
+        script = Path("run.sh").read_text(encoding="utf-8")
+
+        self.assertIn('WIDTH="3840"', script)
+        self.assertIn('HEIGHT="2160"', script)
+        self.assertGreaterEqual(script.count('--width "$WIDTH"'), 2)
+        self.assertGreaterEqual(script.count('--height "$HEIGHT"'), 2)
+        self.assertNotIn("--width 3840", script)
+        self.assertNotIn("--height 2160", script)
+        self.assertIn("function batch()", script)
+        self.assertNotIn("function hydra()", script)
+        self.assertIn('batch "${1:-config/datasets/ubuntu.json}" "${@:2}"', script)
+        self.assertIn('else\n  batch "$@"', script)
+
     def write_json(self, root: Path, name: str, value: dict) -> Path:
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
