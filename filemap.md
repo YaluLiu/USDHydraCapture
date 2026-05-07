@@ -20,8 +20,12 @@ configuration files under `config/`.
 - `src/hydra_capture.cpp`: Main C++ executable integration layer. It parses
   options, loads renderer config, opens the USD stage, chooses or creates a
   camera, initializes the platform GL context, configures
-  `UsdImagingGLEngine`, renders requested AOVs, converts Hydra render buffers
-  into RGBA8 pixels, and writes image files.
+  `UsdImagingGLEngine`, renders requested AOVs, and delegates AOV image writing.
+- `src/image_output.h`: Declares the render-buffer image writing entry point
+  used by the executable.
+- `src/image_output.cpp`: Converts Hydra render buffers into RGBA8 pixels,
+  visualizes scalar/depth/ID AOVs, handles vertical image orientation, and
+  writes `.ppm` files directly or other image formats through OpenUSD Hio.
 - `src/options.h`: Declares the `Options` command-line data structure plus
   parser and usage-printing functions.
 - `src/options.cpp`: Implements the command-line contract for
