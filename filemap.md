@@ -17,10 +17,17 @@ configuration files under `config/`.
 - `src/README.zh.md`: Chinese developer guide for building `hydra_capture`,
   using the command-line interface, understanding renderer JSON fields, and
   following the high-level render/output flow.
-- `src/hydra_capture.cpp`: Main C++ executable integration layer. It parses
-  options, loads renderer config, opens the USD stage, chooses or creates a
-  camera, initializes the platform GL context, configures
-  `UsdImagingGLEngine`, renders requested AOVs, and delegates AOV image writing.
+- `src/main.cpp`: Main C++ executable entry point. It parses options, loads
+  renderer config, opens the USD stage, validates output requests, delegates all
+  Hydra engine work to `HydraCaptureEngine`, and writes requested AOV images.
+- `src/hydra_capture_engine.h`: Declares `HydraCaptureEngine`, the runtime
+  wrapper around GL context setup, `UsdImagingGLEngine` plugin configuration,
+  AOV selection, camera setup, viewport setup, rendering, and render-buffer
+  access.
+- `src/hydra_capture_engine.cpp`: Implements the Hydra runtime wrapper,
+  including platform GL context lifetime, renderer plugin/AOV error reporting,
+  scene camera discovery, generated default camera state, render parameters,
+  render iteration, and available-AOV formatting.
 - `src/image_output.h`: Declares the render-buffer image writing entry point
   used by the executable.
 - `src/image_output.cpp`: Converts Hydra render buffers into RGBA8 pixels,
