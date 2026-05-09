@@ -15,6 +15,8 @@
 #include "pxr/base/gf/vec4f.h"
 #include "pxr/base/tf/token.h"
 #include "pxr/imaging/cameraUtil/framing.h"
+#include "pxr/imaging/glf/simpleLight.h"
+#include "pxr/imaging/glf/simpleMaterial.h"
 #include "pxr/imaging/glf/glContext.h"
 #include "pxr/imaging/glf/testGLContext.h"
 #include "pxr/usd/sdf/path.h"
@@ -229,8 +231,7 @@ bool MakeGLContextCurrent(HydraPlatformGLContext* outContext, std::string* error
 #endif
 }
 
-void SetDefaultCameraState(
-    UsdImagingGLEngine* engine,
+GfFrustum MakeDefaultCameraFrustum(
     const UsdStageRefPtr& stage,
     int width,
     int height) {
@@ -264,10 +265,42 @@ void SetDefaultCameraState(
     camera.SetTransform(
         GfMatrix4d(1.0).SetTranslate(center + GfVec3d(0.0, 0.0, distance)));
 
-    const GfFrustum frustum = camera.GetFrustum();
+    return camera.GetFrustum();
+}
+
+void SetCameraState(UsdImagingGLEngine* engine, const GfFrustum& frustum) {
     engine->SetCameraState(
         frustum.ComputeViewMatrix(),
         frustum.ComputeProjectionMatrix());
+}
+
+void SetCameraLightState(
+    UsdImagingGLEngine* engine,
+    const GfFrustum& frustum,
+    bool cameraLightEnabled) {
+    const GfVec4f kSceneAmbient(0.01f, 0.01f, 0.01f, 1.0f);
+    const GfVec4f kMaterialAmbient(0.2f, 0.2f, 0.2f, 1.0f);
+    const GfVec4f kMaterialSpecular(0.1f, 0.1f, 0.1f, 1.0f);
+    const float kMaterialShininess = 32.0f;
+
+    GlfSimpleLightVector lights;
+    if (cameraLightEnabled) {
+        const GfVec3d cameraPosition = frustum.GetPosition();
+        GlfSimpleLight cameraLight(GfVec4f(
+            static_cast<float>(cameraPosition[0]),
+            static_cast<float>(cameraPosition[1]),
+            static_cast<float>(cameraPosition[2]),
+            1.0f));
+        cameraLight.SetTransform(frustum.ComputeViewInverse());
+        cameraLight.SetAmbient(kSceneAmbient);
+        lights.push_back(cameraLight);
+    }
+
+    GlfSimpleMaterial material;
+    material.SetAmbient(kMaterialAmbient);
+    material.SetSpecular(kMaterialSpecular);
+    material.SetShininess(kMaterialShininess);
+    engine->SetLightingState(lights, material, kSceneAmbient);
 }
 
 UsdImagingGLRenderParams MakeDefaultRenderParams() {
@@ -354,11 +387,13 @@ bool HydraCaptureEngine::SetAovs(
 bool HydraCaptureEngine::ConfigureCamera(
     const UsdStageRefPtr& stage,
     const std::string& requestedCameraPath,
+    bool cameraLightEnabled,
     int width,
     int height,
     std::string* status,
     std::string* error) {
     SdfPath cameraPath;
+    UsdGeomCamera sceneCamera;
     bool useSceneCamera = false;
     if (!requestedCameraPath.empty()) {
         cameraPath = SdfPath(requestedCameraPath);
@@ -372,21 +407,27 @@ bool HydraCaptureEngine::ConfigureCamera(
             SetError(error, "Camera not found or not a UsdGeomCamera: " + requestedCameraPath);
             return false;
         }
+        sceneCamera = UsdGeomCamera(cameraPrim);
         useSceneCamera = true;
     } else {
         cameraPath = FindFirstCameraPath(stage);
         if (!cameraPath.IsEmpty()) {
+            sceneCamera = UsdGeomCamera(stage->GetPrimAtPath(cameraPath));
             useSceneCamera = true;
         }
     }
 
+    GfFrustum cameraFrustum;
     if (useSceneCamera) {
         engine_->SetCameraPath(cameraPath);
+        cameraFrustum = sceneCamera.GetCamera(UsdTimeCode::Default()).GetFrustum();
         SetError(status, "Using camera: " + cameraPath.GetString());
     } else {
-        SetDefaultCameraState(engine_.get(), stage, width, height);
+        cameraFrustum = MakeDefaultCameraFrustum(stage, width, height);
+        SetCameraState(engine_.get(), cameraFrustum);
         SetError(status, "Using generated default camera.");
     }
+    SetCameraLightState(engine_.get(), cameraFrustum, cameraLightEnabled);
     return true;
 }
 

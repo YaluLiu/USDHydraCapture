@@ -24,6 +24,7 @@ void TestParseRequiredAndRepeatedAovs() {
         "/tmp/out",
         "--camera",
         "/World/Camera",
+        "--disableCameraLight",
         "--width",
         "64",
         "--height",
@@ -43,6 +44,7 @@ void TestParseRequiredAndRepeatedAovs() {
     assert(options.usdPath == "/tmp/scene.usd");
     assert(options.outputDir == "/tmp/out");
     assert(options.cameraPath == "/World/Camera");
+    assert(!options.cameraLightEnabled);
     assert(options.width == 64);
     assert(options.height == 32);
     assert(options.maxIterations == 3);

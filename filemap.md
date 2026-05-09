@@ -27,8 +27,8 @@ configuration files under `config/`.
 - `src/hydra_capture_engine.cpp`: Implements the Hydra runtime wrapper,
   including platform GL context and `UsdImagingGLEngine` lifetime ordering,
   renderer plugin/AOV error reporting, scene camera discovery, generated
-  default camera state, camera-positioned simple lighting, render parameters,
-  render iteration, and available-AOV formatting.
+  default camera state, optional camera-positioned headlight setup, render
+  parameters, render iteration, and available-AOV formatting.
 - `src/image_output.h`: Declares the render-buffer image writing entry point
   used by the executable.
 - `src/image_output.cpp`: Converts Hydra render buffers into RGBA8 pixels,
@@ -38,8 +38,8 @@ configuration files under `config/`.
   parser and usage-printing functions.
 - `src/options.cpp`: Implements the command-line contract for
   `hydra_capture`, including required flags, repeated `--aov` handling, positive
-  integer validation for dimensions/iterations, and rejection of unknown
-  arguments.
+  integer validation for dimensions/iterations, the camera-light disable flag,
+  and rejection of unknown arguments.
 - `src/renderer_config.h`: Declares renderer configuration data structures:
   renderer metadata, plugin token, default AOVs, renderer settings, and per-AOV
   output extensions.

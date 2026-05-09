@@ -88,6 +88,7 @@ int main(int argc, char** argv) {
     if (!hydraEngine.ConfigureCamera(
             stage,
             options.cameraPath,
+            options.cameraLightEnabled,
             options.width,
             options.height,
             &cameraStatus,

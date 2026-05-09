@@ -35,6 +35,7 @@ cmake --build build-codex
 
 ```text
 --camera <SdfPath>       Camera prim 路径，例如 /World/Camera。
+--disableCameraLight     关闭默认跟随相机的 headlight。
 --width <int>            渲染宽度。默认值：1280。
 --height <int>           渲染高度。默认值：720。
 --aov <token>            要输出的 AOV token，可重复指定。
@@ -151,7 +152,8 @@ AOV 文件名会保留 ASCII 字母、数字、`_`、`-` 和 `.`。其他字符�
 3. 从 CLI 覆盖、配置默认值或 `color` 回退值解析最终 AOV 列表。
 4. 创建 `<output-dir>/<usd-stem>`。
 5. 创建 GL context 并打开 USD stage。
-6. 使用 `--camera` 指定的相机、stage 上第一个相机，或生成默认相机。
+6. 使用 `--camera` 指定的相机、stage 上第一个相机，或生成默认相机，并默认添加
+   跟随当前相机的 headlight；可用 `--disableCameraLight` 关闭。
 7. 配置 `UsdImagingGLEngine` 的 renderer plugin、settings、AOV、渲染尺寸和
    framing。
 8. 渲染到收敛或达到 `--max-iterations`。

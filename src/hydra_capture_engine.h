@@ -32,6 +32,7 @@ public:
     bool ConfigureCamera(
         const pxr::UsdStageRefPtr& stage,
         const std::string& requestedCameraPath,
+        bool cameraLightEnabled,
         int width,
         int height,
         std::string* status,

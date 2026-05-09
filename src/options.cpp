@@ -37,6 +37,7 @@ void PrintUsage(std::ostream& out, const char* program) {
            "--output-dir <dir> [options]\n\n"
         << "Options:\n"
         << "  --camera <SdfPath>       Camera prim path, e.g. /World/Camera\n"
+        << "  --disableCameraLight     Disable the default camera headlight\n"
         << "  --width <int>            Render width (default: 1280)\n"
         << "  --height <int>           Render height (default: 720)\n"
         << "  --aov <token>            AOV to output; may be repeated\n"
@@ -82,6 +83,8 @@ bool ParseArgs(int argc, char** argv, Options* options, std::string* error) {
             if (!requireValue(arg, &options->cameraPath)) {
                 return false;
             }
+        } else if (arg == "--disableCameraLight") {
+            options->cameraLightEnabled = false;
         } else if (arg == "--aov") {
             if (!requireValue(arg, &value)) {
                 return false;

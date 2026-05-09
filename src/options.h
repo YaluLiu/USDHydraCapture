@@ -10,6 +10,7 @@ struct Options {
     std::string outputDir;
     std::string cameraPath;
     std::vector<std::string> aovOverrides;
+    bool cameraLightEnabled = true;
     int width = 1280;
     int height = 720;
     int maxIterations = 1;
