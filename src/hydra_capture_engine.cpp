@@ -292,14 +292,23 @@ HydraCaptureEngine::HydraCaptureEngine()
     : context_(std::make_unique<HydraPlatformGLContext>()) {}
 
 HydraCaptureEngine::~HydraCaptureEngine() {
+    engine_.reset();
     DestroyGLContext(context_.get());
 }
 
 bool HydraCaptureEngine::Initialize(std::string* error) {
+    if (engine_) {
+        return true;
+    }
+
     if (!MakeGLContextCurrent(context_.get(), error)) {
         return false;
     }
-    engine_.SetEnablePresentation(false);
+
+    // UsdImagingGLEngine initializes Hgi during construction, so the GL
+    // context must already be current before this point.
+    engine_ = std::make_unique<UsdImagingGLEngine>();
+    engine_->SetEnablePresentation(false);
     return true;
 }
 
@@ -307,7 +316,7 @@ bool HydraCaptureEngine::SetRendererPlugin(
     const std::string& rendererPlugin,
     std::string* error) {
     const TfToken plugin(rendererPlugin);
-    if (!engine_.SetRendererPlugin(plugin)) {
+    if (!engine_->SetRendererPlugin(plugin)) {
         std::ostringstream out;
         out << "Failed to set renderer plugin: " << plugin.GetString()
             << "\nAvailable renderer plugins: "
@@ -320,7 +329,7 @@ bool HydraCaptureEngine::SetRendererPlugin(
 
 bool HydraCaptureEngine::ApplySettings(
     const std::map<std::string, JsValue>& settings) {
-    return ApplyRendererSettings(&engine_, settings);
+    return ApplyRendererSettings(engine_.get(), settings);
 }
 
 bool HydraCaptureEngine::SetAovs(
@@ -332,10 +341,10 @@ bool HydraCaptureEngine::SetAovs(
         aovNames.emplace_back(aov);
     }
 
-    if (!engine_.SetRendererAovs(aovNames)) {
+    if (!engine_->SetRendererAovs(aovNames)) {
         std::ostringstream out;
         out << "Failed to set renderer AOVs: " << JoinTokens(aovNames)
-            << "\nAvailable AOVs: " << JoinTokens(engine_.GetRendererAovs());
+            << "\nAvailable AOVs: " << JoinTokens(engine_->GetRendererAovs());
         SetError(error, out.str());
         return false;
     }
@@ -372,20 +381,20 @@ bool HydraCaptureEngine::ConfigureCamera(
     }
 
     if (useSceneCamera) {
-        engine_.SetCameraPath(cameraPath);
+        engine_->SetCameraPath(cameraPath);
         SetError(status, "Using camera: " + cameraPath.GetString());
     } else {
-        SetDefaultCameraState(&engine_, stage, width, height);
+        SetDefaultCameraState(engine_.get(), stage, width, height);
         SetError(status, "Using generated default camera.");
     }
     return true;
 }
 
 void HydraCaptureEngine::ConfigureViewport(int width, int height) {
-    engine_.SetRenderBufferSize(GfVec2i(width, height));
-    engine_.SetFraming(
+    engine_->SetRenderBufferSize(GfVec2i(width, height));
+    engine_->SetFraming(
         CameraUtilFraming(GfRect2i(GfVec2i(0, 0), width, height)));
-    engine_.SetOverrideWindowPolicy(
+    engine_->SetOverrideWindowPolicy(
         std::make_optional(CameraUtilMatchHorizontally));
 }
 
@@ -395,17 +404,17 @@ HydraRenderResult HydraCaptureEngine::Render(
     const UsdImagingGLRenderParams renderParams = MakeDefaultRenderParams();
     HydraRenderResult result;
     do {
-        engine_.Render(stage->GetPseudoRoot(), renderParams);
+        engine_->Render(stage->GetPseudoRoot(), renderParams);
         ++result.sampleCount;
-    } while (!engine_.IsConverged() && result.sampleCount < maxIterations);
-    result.converged = engine_.IsConverged();
+    } while (!engine_->IsConverged() && result.sampleCount < maxIterations);
+    result.converged = engine_->IsConverged();
     return result;
 }
 
 HdRenderBuffer* HydraCaptureEngine::GetAovRenderBuffer(const std::string& aov) {
-    return engine_.GetAovRenderBuffer(TfToken(aov));
+    return engine_->GetAovRenderBuffer(TfToken(aov));
 }
 
 std::string HydraCaptureEngine::AvailableAovs() const {
-    return JoinTokens(engine_.GetRendererAovs());
+    return JoinTokens(engine_->GetRendererAovs());
 }

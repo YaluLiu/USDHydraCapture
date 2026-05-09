@@ -25,8 +25,9 @@ configuration files under `config/`.
   AOV selection, camera setup, viewport setup, rendering, and render-buffer
   access.
 - `src/hydra_capture_engine.cpp`: Implements the Hydra runtime wrapper,
-  including platform GL context lifetime, renderer plugin/AOV error reporting,
-  scene camera discovery, generated default camera state, render parameters,
+  including platform GL context and `UsdImagingGLEngine` lifetime ordering,
+  renderer plugin/AOV error reporting, scene camera discovery, generated
+  default camera state, camera-positioned simple lighting, render parameters,
   render iteration, and available-AOV formatting.
 - `src/image_output.h`: Declares the render-buffer image writing entry point
   used by the executable.

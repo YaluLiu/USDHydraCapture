@@ -43,5 +43,5 @@ public:
 
 private:
     std::unique_ptr<HydraPlatformGLContext> context_;
-    pxr::UsdImagingGLEngine engine_;
+    std::unique_ptr<pxr::UsdImagingGLEngine> engine_;
 };
