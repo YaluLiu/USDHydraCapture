@@ -84,6 +84,10 @@ void SetError(std::string* error, const std::string& message) {
     }
 }
 
+UsdTimeCode GetDefaultRenderTimeCode() {
+    return UsdTimeCode(1.0);
+}
+
 void DestroyGLContext(HydraPlatformGLContext* context) {
     if (!context) {
         return;
@@ -234,14 +238,15 @@ bool MakeGLContextCurrent(HydraPlatformGLContext* outContext, std::string* error
 GfFrustum MakeDefaultCameraFrustum(
     const UsdStageRefPtr& stage,
     int width,
-    int height) {
+    int height,
+    const UsdTimeCode& timeCode) {
     const float aspectRatio =
         height > 0 ? static_cast<float>(width) / static_cast<float>(height) : 1.0f;
 
     GfRange3d range;
     if (stage) {
         UsdGeomBBoxCache bboxCache(
-            UsdTimeCode::Default(),
+            timeCode,
             { UsdGeomTokens->default_, UsdGeomTokens->proxy, UsdGeomTokens->render });
         range = bboxCache.ComputeWorldBound(stage->GetPseudoRoot()).ComputeAlignedRange();
     }
@@ -303,9 +308,9 @@ void SetCameraLightState(
     engine->SetLightingState(lights, material, kSceneAmbient);
 }
 
-UsdImagingGLRenderParams MakeDefaultRenderParams() {
+UsdImagingGLRenderParams MakeDefaultRenderParams(const UsdTimeCode& timeCode) {
     UsdImagingGLRenderParams renderParams;
-    renderParams.frame = UsdTimeCode::Default();
+    renderParams.frame = timeCode;
     renderParams.complexity = 1.0f;
     renderParams.drawMode = UsdImagingGLDrawMode::DRAW_SHADED_SMOOTH;
     renderParams.showProxy = true;
@@ -417,13 +422,14 @@ bool HydraCaptureEngine::ConfigureCamera(
         }
     }
 
+    const UsdTimeCode renderTime = GetDefaultRenderTimeCode();
     GfFrustum cameraFrustum;
     if (useSceneCamera) {
         engine_->SetCameraPath(cameraPath);
-        cameraFrustum = sceneCamera.GetCamera(UsdTimeCode::Default()).GetFrustum();
+        cameraFrustum = sceneCamera.GetCamera(renderTime).GetFrustum();
         SetError(status, "Using camera: " + cameraPath.GetString());
     } else {
-        cameraFrustum = MakeDefaultCameraFrustum(stage, width, height);
+        cameraFrustum = MakeDefaultCameraFrustum(stage, width, height, renderTime);
         SetCameraState(engine_.get(), cameraFrustum);
         SetError(status, "Using generated default camera.");
     }
@@ -442,7 +448,8 @@ void HydraCaptureEngine::ConfigureViewport(int width, int height) {
 HydraRenderResult HydraCaptureEngine::Render(
     const UsdStageRefPtr& stage,
     int maxIterations) {
-    const UsdImagingGLRenderParams renderParams = MakeDefaultRenderParams();
+    const UsdImagingGLRenderParams renderParams =
+        MakeDefaultRenderParams(GetDefaultRenderTimeCode());
     HydraRenderResult result;
     do {
         engine_->Render(stage->GetPseudoRoot(), renderParams);
