@@ -2,7 +2,7 @@
   "name": "hdRobot",
   "renderer_plugin": "HdRobotRendererPlugin",
   "defaults": {
-    "aovs": ["color", "tileDisplayColor"],
+    "aovs": ["color", "tileDisplayColor","tileDisplayDepth","tileColor","tileDepth"],
     "maxIterations": 1,
     "settings": {
       "hdRobot:tile:enabled": true,
@@ -16,10 +16,19 @@
     "color": {
       "output_ext": ".png"
     },
+    "tileColor": {
+      "output_ext": ".png"
+    },
+    "tileDisplayColor": {
+      "output_ext": ".png"
+    },
     "depth": {
       "output_ext": ".ppm"
     },
-    "tileDisplayColor": {
+    "tileDepth": {
+      "output_ext": ".ppm"
+    },
+    "tileDisplayDepth": {
       "output_ext": ".png"
     }
   }
