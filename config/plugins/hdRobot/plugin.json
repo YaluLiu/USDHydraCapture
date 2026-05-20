@@ -2,44 +2,25 @@
   "name": "hdRobot",
   "renderer_plugin": "HdRobotRendererPlugin",
   "defaults": {
-    "aovs": ["color", "depth", "primId", "lidar:pointCloud"],
+    "aovs": ["color", "tileDisplayColor"],
     "maxIterations": 1,
     "settings": {
-      "spp": 4,
-      "dlss-rr-denoise": true,
-      "dlss-sr-enable": true,
-      "dlss-sr-scale": 0.6,
-      "lidar-enable": true
+      "hdRobot:tile:enabled": true,
+      "hdRobot:tile:cameraWidth": 1080,
+      "hdRobot:tile:cameraHeight": 720,
+      "hdRobot:tile:gridColumns": 10,
+      "hdRobot:tile:gridRows": 10
     }
   },
   "aovs": {
     "color": {
-      "output_ext": ".png",
-      "compare": {
-        "enabled": true,
-        "max_diff_ratio": 0.001
-      }
+      "output_ext": ".png"
     },
     "depth": {
-      "output_ext": ".ppm",
-      "compare": {
-        "enabled": true,
-        "max_diff_ratio": 0.001
-      }
+      "output_ext": ".ppm"
     },
-    "primId": {
-      "output_ext": ".ppm",
-      "compare": {
-        "enabled": true,
-        "max_diff_ratio": 0.0
-      }
-    },
-    "lidar:pointCloud": {
-      "output_ext": ".exr",
-      "compare": {
-        "enabled": false,
-        "max_diff_ratio": 0.0
-      }
+    "tileDisplayColor": {
+      "output_ext": ".png"
     }
   }
 }

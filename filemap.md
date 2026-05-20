@@ -1,16 +1,17 @@
 # File Map
 
 This map covers the project files that are most useful when changing runtime
-behavior, tests, or the local run entrypoint. It intentionally omits
+behavior or the local run entrypoint. It intentionally omits
 configuration files under `config/`.
 
 ## Entrypoint
 
-- `run.sh`: Local convenience wrapper for running `hydra_capture` directly or
-  through the Python batch runner. It defines the default renderer plugin,
-  capture binary, renderer/test config paths, default USD asset, shared output
-  directory, and shared render dimensions. With no subcommand it runs `batch`;
-  `single`, `batch`, `dataset`, `baseline`, and `test` are callable subcommands.
+- `run.sh`: Local convenience wrapper for building `hydra_capture` and rendering
+  one USD through one renderer plugin config. It defines the default capture
+  binary, renderer config, default USD asset, output directory, and render
+  dimensions. With no subcommand it runs `aovs`; `aovs [usd] [plugin-or-config]
+  [output-dir] [extra hydra_capture args...]` writes the renderer-configured AOV
+  images for one USD, and `build` rebuilds the C++ executable.
 
 ## `src/`
 
@@ -49,7 +50,7 @@ configuration files under `config/`.
 - `src/aov_output.h`: Declares helpers for resolving final AOV lists, choosing
   output extensions, sanitizing AOV tokens for filenames, and building output
   paths.
-- `src/aov_output.cpp`: Implements output rules shared by rendering and tests:
+- `src/aov_output.cpp`: Implements output rules used by rendering:
   CLI AOVs override config defaults, `color` defaults to `.png`, other AOVs
   default to `.ppm`, unsafe filename characters collapse to `_`, and output
   paths use `<output-dir>/<usd-stem>/<aov><ext>`.
@@ -59,13 +60,3 @@ configuration files under `config/`.
   `pxr::VtValue`, using renderer setting descriptor defaults to preserve float,
   double, and `TfToken` types before applying settings to
   `UsdImagingGLEngine`.
-
-## `tests/`
-
-- `tests/test_cli_config_paths.cpp`: C++ assertion-based unit test executable
-  for command-line parsing, renderer config loading, AOV output rules, and
-  renderer setting type conversion.
-- `tests/test_hydra_batch.py`: Python unittest suite for the batch workflow and
-  comparison helpers. It covers test config loading, dataset expansion, command
-  construction, expected output paths, dry runs, missing outputs, workflow
-  baseline/test comparison behavior, argument parsing, and `run.sh` defaults.

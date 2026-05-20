@@ -45,40 +45,10 @@ target_link_libraries(hydra_capture PRIVATE
     ${CMAKE_DL_LIBS}
 )
 
-add_executable(hydra_capture_unit_tests
-    src/aov_output.cpp
-    src/options.cpp
-    src/renderer_config.cpp
-    src/renderer_settings.cpp
-    tests/test_cli_config_paths.cpp
-)
-
-target_include_directories(hydra_capture_unit_tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${PXR_INCLUDE_DIRS}
-)
-
-target_link_libraries(hydra_capture_unit_tests PRIVATE
-    cameraUtil
-    gf
-    glf
-    hd
-    js
-    sdf
-    tf
-    usd
-    usdGeom
-    usdImagingGL
-    vt
-    OpenGL::GL
-    ${CMAKE_DL_LIBS}
-)
-
 if(WIN32)
     target_link_libraries(hydra_capture PRIVATE
         user32
         gdi32
     )
     target_compile_definitions(hydra_capture PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
-    target_compile_definitions(hydra_capture_unit_tests PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()

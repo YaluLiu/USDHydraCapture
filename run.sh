@@ -4,59 +4,57 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 OUTPUT_DIR="output"
-PLUGIN_NAME="hdRobot"
 HYDRA_CAPTURE="./build-codex/hydra_capture"
-RENDERER_CONFIG="config/plugins/${PLUGIN_NAME}/plugin.json"
-TEST_CONFIG="config/test/ubuntu.json"
-DEFAULT_USD="/home/yalu/docker/assets/unit_test/single/four_box/mesh_output_1761207339.usdc"
-DEFAULT_USD="/home/yalu/docker/assets/obj/four_box.usdz"
 WIDTH="3840"
 HEIGHT="2160"
 
+PLUGIN_NAME="hdRobot" # hdStorm hdRobot
+RENDERER_CONFIG="config/plugins/${PLUGIN_NAME}/plugin.json"
+
+DEFAULT_USD="/home/yalu/docker/assets/tile/pao/tile_pao.usd"
+
 mkdir -p "$OUTPUT_DIR"
 
-function single() {
+function aovs() {
   local usd_path="${1:-$DEFAULT_USD}"
-
-  "$HYDRA_CAPTURE" \
-    --renderer-config "$RENDERER_CONFIG" \
-    --usd "$usd_path" \
-    --output-dir "$OUTPUT_DIR" \
-    --width "$WIDTH" \
-    --height "$HEIGHT"
-}
-
-function batch() {
-  local dataset_config="config/datasets/ubuntu.json"
-  if (($# > 0)) && [[ "$1" != -* ]]; then
-    dataset_config="$1"
+  if (($# > 0)); then
     shift
   fi
 
-  python3 -m tools.hydra_batch \
-    --dataset-config "$dataset_config" \
-    --renderer-config "$RENDERER_CONFIG" \
-    --hydra-capture "$HYDRA_CAPTURE" \
-    --output-dir "$OUTPUT_DIR/ubuntu" \
+  local renderer_config="$RENDERER_CONFIG"
+  if (($# > 0)) && [[ "$1" != -* ]]; then
+    if [[ "$1" == *.json || "$1" == */* ]]; then
+      renderer_config="$1"
+    else
+      renderer_config="config/plugins/${1}/plugin.json"
+    fi
+    shift
+  fi
+
+  local plugin_name
+  plugin_name="$(basename "$(dirname "$renderer_config")")"
+  local output_dir="$OUTPUT_DIR/aovs/${plugin_name}"
+  if (($# > 0)) && [[ "$1" != -* ]]; then
+    output_dir="$1"
+    shift
+  fi
+
+  local pxr_pluginpath="${PXR_PLUGINPATH_NAME:-/home/yalu/software/USD/plugin/usd}"
+  PXR_PLUGINPATH_NAME="$pxr_pluginpath" "$HYDRA_CAPTURE" \
+    --renderer-config "$renderer_config" \
+    --usd "$usd_path" \
+    --output-dir "$output_dir" \
     --width "$WIDTH" \
     --height "$HEIGHT" \
     "$@"
 }
 
-function dataset() {
-  batch "${1:-config/datasets/ubuntu.json}" "${@:2}"
-}
-
-function baseline() {
-  python3 -m tools.hydra_batch.workflow baseline --test-config "$TEST_CONFIG" "$@"
-}
-
-function test() {
-  python3 -m tools.hydra_batch.workflow test --test-config "$TEST_CONFIG" "$@"
+function build() {
+  cmake --build build-codex --target hydra_capture
 }
 
 if (($# > 0)) && declare -f -- "$1" > /dev/null; then
   "$1" "${@:2}"
 else
-  batch "$@"
+  aovs "$@"
 fi

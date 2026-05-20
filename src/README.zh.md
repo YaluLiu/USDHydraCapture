@@ -17,7 +17,6 @@ cmake --build build-codex
 常用目标：
 
 ```bash
-./build-codex/hydra_capture_unit_tests
 ./build-codex/hydra_capture --renderer-config config/plugins/hdStorm/plugin.json --usd /path/to/scene.usd --output-dir /tmp/hydra_capture
 ```
 
@@ -45,30 +44,36 @@ cmake --build build-codex
 工具不接受 `--renderer-plugin` 和旧的位置参数。Renderer plugin token 必须来自
 `--renderer-config` 指向的 JSON。
 
-## 示例：hdRobot
+## 示例：输出 AOV 图片
 
-`render_pao_hdrobot.sh` 是现成的 hdRobot 运行脚本：
-
-```bash
-./render_pao_hdrobot.sh
-```
-
-脚本实际执行：
+`run.sh` 是本地运行脚本。默认使用 `config/plugins/hdStorm/plugin.json`，渲染
+脚本里的 `DEFAULT_USD`，并把图片写到 `output/aovs/hdStorm/<usd-stem>/`：
 
 ```bash
-./build-codex/hydra_capture \
-  --renderer-config config/plugins/hdRobot/plugin.json \
-  --usd /home/yalu/docker/assets/unit_test/single/four_box/mesh_output_1761207339.usdc \
-  --output-dir resources
+./run.sh
 ```
 
-按当前 hdRobot 配置，输出会写到：
+也可以显式指定 USD、renderer plugin 和输出目录：
+
+```bash
+./run.sh /path/to/scene.usd hdRobot /tmp/hydra_capture
+```
+
+第二个参数可以是 `config/plugins/<name>/plugin.json` 这类 JSON 路径，也可以是
+`hdStorm`、`hdRobot` 这类配置目录名。额外参数会直接透传给
+`hydra_capture`，例如只输出 color：
+
+```bash
+./run.sh /path/to/scene.usd hdStorm /tmp/hydra_capture --aov color
+```
+
+按 renderer 配置里的默认 AOV，输出会写到：
 
 ```text
-resources/mesh_output_1761207339/color.png
-resources/mesh_output_1761207339/depth.ppm
-resources/mesh_output_1761207339/primId.ppm
-resources/mesh_output_1761207339/lidar_pointCloud.exr
+<output-dir>/<usd-stem>/color.png
+<output-dir>/<usd-stem>/depth.ppm
+<output-dir>/<usd-stem>/primId.ppm
+<output-dir>/<usd-stem>/lidar_pointCloud.exr
 ```
 
 ## Renderer 配置
@@ -103,8 +108,7 @@ Renderer 配置位于 `config/plugins/`。C++ 当前支持的字段如下：
 - `defaults.settings` 可选。这里的值会通过
   `UsdImagingGLEngine::SetRendererSetting` 应用到 render delegate。
 - `aovs.<aov>.output_ext` 可选。`color` 默认 `.png`，其他 AOV 默认 `.ppm`。
-- 未识别字段会被 C++ loader 忽略。现有配置里的 `compare` 字段是给外部工具
-  使用的，`hydra_capture` 本身不会读取。
+- 未识别字段会被 C++ loader 忽略。
 
 Renderer setting 支持 JSON bool、int、real、string。若 render delegate 暴露
 setting descriptor 默认值，数值和字符串会按 descriptor 类型转换，例如
@@ -141,7 +145,7 @@ AOV 文件名会保留 ASCII 字母、数字、`_`、`-` 和 `.`。其他字符�
   把 AOV token 转成安全文件名，并生成输出路径。
 - `src/renderer_settings.*`：renderer setting 应用模块。把 JSON 值转换成
   `pxr::VtValue`，再设置到 `UsdImagingGLEngine`。
-- `src/hydra_capture.cpp`：可执行程序集成层。负责创建 GL context、打开 USD stage、
+- `src/main.cpp`：可执行程序集成层。负责创建 GL context、打开 USD stage、
   选择相机、配置 renderer、执行渲染、把 Hydra render buffer 转成 RGBA8，并写出
   图片文件。
 

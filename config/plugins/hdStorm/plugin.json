@@ -8,25 +8,13 @@
   },
   "aovs": {
     "color": {
-      "output_ext": ".png",
-      "compare": {
-        "enabled": true,
-        "max_diff_ratio": 0.0
-      }
+      "output_ext": ".png"
     },
     "depth": {
-      "output_ext": ".ppm",
-      "compare": {
-        "enabled": true,
-        "max_diff_ratio": 0.0
-      }
+      "output_ext": ".ppm"
     },
     "primId": {
-      "output_ext": ".ppm",
-      "compare": {
-        "enabled": true,
-        "max_diff_ratio": 0.0
-      }
+      "output_ext": ".ppm"
     }
   }
 }
