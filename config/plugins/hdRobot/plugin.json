@@ -9,7 +9,11 @@
       "hdRobot:tile:cameraWidth": 1080,
       "hdRobot:tile:cameraHeight": 720,
       "hdRobot:tile:gridColumns": 10,
-      "hdRobot:tile:gridRows": 10
+      "hdRobot:tile:gridRows": 10,
+      "hdRobot:lidar:visualizeEnabled": true,
+      "hdRobot:lidar:visualizeAllSensors": true,
+      "hdRobot:lidar:visualizeSensorIndex": 0,
+      "hdRobot:lidar:visualizePointSize": 2.0
     }
   },
   "aovs": {

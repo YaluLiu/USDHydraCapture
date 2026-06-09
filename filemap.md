@@ -27,8 +27,8 @@ file contents under `config/`; use the renderer JSON schema notes in
   `graphify-out/GRAPH_REPORT.md` before architecture/codebase answers, rebuilding
   the graph after code-file edits, and keeping this filemap current for important
   `src/`, `tests/`, or `run.sh` changes.
-- `.gitignore`: Excludes build trees, graph output, runtime image output, editor
-  state, Python caches, and `task.md`.
+- `.gitignore`: Excludes build trees, graph output, runtime image output, local
+  datasets/docs, editor state, Python caches, and `task.md`.
 - `README.md`: Language selector pointing to the Chinese README.
 - `README.zh.md`: Language selector pointing to the English README.
 - `src/README.zh.md`: Main project documentation. Describes build commands, CLI
@@ -39,10 +39,10 @@ file contents under `config/`; use the renderer JSON schema notes in
   OpenGL and OpenUSD `pxr`, honors `PXR_DIR`, links OpenUSD imaging, USD, JSON,
   Hio, GL, and platform libraries.
 - `run.sh`: Local convenience wrapper. Defaults to `hdRobot`, renders
-  `/home/yalu/docker/assets/tile/pao/tile_pao.usd`, writes under
-  `output/aovs/<plugin>/`, uses `3840x2160`, supports `build`, and otherwise
-  calls `hydra_capture` with a renderer config, USD path, output dir, and any
-  extra CLI flags.
+  `/home/yalu/docker/assets/demo5/World0.usd`, writes under `output/world0`,
+  exports LiDAR point clouds to `output/lidar_json/lidar_point_cloud.csv`,
+  supports `build`, and otherwise calls `build-codex/hydra_capture` with the
+  hdRobot renderer config and `color` AOV.
 - `filemap.md`: This file.
 
 ## Runtime Flow

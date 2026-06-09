@@ -11,6 +11,10 @@ resources/
 media/
 output/
 
+# Local datasets/docs
+testdata/
+docs/
+
 # OS / editor
 .DS_Store
 .idea/

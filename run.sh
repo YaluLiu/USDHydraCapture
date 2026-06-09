@@ -12,41 +12,18 @@ PLUGIN_NAME="hdRobot" # hdStorm hdRobot
 RENDERER_CONFIG="config/plugins/${PLUGIN_NAME}/plugin.json"
 
 DEFAULT_USD="/home/yalu/docker/assets/tile/pao/tile_pao.usd"
+DEFAULT_USD="/home/yalu/docker/assets/demo5/World0.usd"
+
 
 mkdir -p "$OUTPUT_DIR"
 
 function aovs() {
-  local usd_path="${1:-$DEFAULT_USD}"
-  if (($# > 0)); then
-    shift
-  fi
-
-  local renderer_config="$RENDERER_CONFIG"
-  if (($# > 0)) && [[ "$1" != -* ]]; then
-    if [[ "$1" == *.json || "$1" == */* ]]; then
-      renderer_config="$1"
-    else
-      renderer_config="config/plugins/${1}/plugin.json"
-    fi
-    shift
-  fi
-
-  local plugin_name
-  plugin_name="$(basename "$(dirname "$renderer_config")")"
-  local output_dir="$OUTPUT_DIR/aovs/${plugin_name}"
-  if (($# > 0)) && [[ "$1" != -* ]]; then
-    output_dir="$1"
-    shift
-  fi
-
-  local pxr_pluginpath="${PXR_PLUGINPATH_NAME:-/home/yalu/software/USD/plugin/usd}"
-  PXR_PLUGINPATH_NAME="$pxr_pluginpath" "$HYDRA_CAPTURE" \
-    --renderer-config "$renderer_config" \
-    --usd "$usd_path" \
-    --output-dir "$output_dir" \
-    --width "$WIDTH" \
-    --height "$HEIGHT" \
-    "$@"
+  ./build-codex/hydra_capture \
+    --renderer-config config/plugins/${PLUGIN_NAME}/plugin.json \
+    --usd ${DEFAULT_USD} \
+    --output-dir output/world0 \
+    --aov color \
+    --export-lidar-point-cloud output/lidar_json/lidar_point_cloud.csv
 }
 
 function build() {
