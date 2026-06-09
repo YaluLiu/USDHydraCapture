@@ -16,6 +16,8 @@ add_executable(hydra_capture
     src/aov_output.cpp
     src/hydra_capture_engine.cpp
     src/image_output.cpp
+    src/lidar_overlay.cpp
+    src/lidar_point_cloud.cpp
     src/main.cpp
     src/options.cpp
     src/renderer_settings.cpp

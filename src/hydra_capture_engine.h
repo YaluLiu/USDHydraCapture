@@ -1,6 +1,9 @@
 #pragma once
 
+#include "pxr/base/gf/matrix4d.h"
 #include "pxr/base/js/value.h"
+#include "pxr/base/tf/token.h"
+#include "pxr/imaging/hd/command.h"
 #include "pxr/imaging/hd/renderBuffer.h"
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usdImaging/usdImagingGL/engine.h"
@@ -11,6 +14,14 @@
 #include <vector>
 
 struct HydraPlatformGLContext;
+
+struct RenderCameraState {
+    pxr::GfMatrix4d viewMatrix;
+    pxr::GfMatrix4d projectionMatrix;
+    int width = 0;
+    int height = 0;
+    bool valid = false;
+};
 
 struct HydraRenderResult {
     int sampleCount = 0;
@@ -37,12 +48,18 @@ public:
         int height,
         std::string* status,
         std::string* error);
+    const RenderCameraState& GetCameraState() const;
     void ConfigureViewport(int width, int height);
     HydraRenderResult Render(const pxr::UsdStageRefPtr& stage, int maxIterations);
     pxr::HdRenderBuffer* GetAovRenderBuffer(const std::string& aov);
+    bool InvokeRendererCommand(
+        const pxr::TfToken& command,
+        const pxr::HdCommandArgs& args,
+        std::string* error);
     std::string AvailableAovs() const;
 
 private:
     std::unique_ptr<HydraPlatformGLContext> context_;
     std::unique_ptr<pxr::UsdImagingGLEngine> engine_;
+    RenderCameraState cameraState_;
 };

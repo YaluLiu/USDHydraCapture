@@ -14,6 +14,8 @@
 #include "pxr/base/gf/vec3d.h"
 #include "pxr/base/gf/vec4f.h"
 #include "pxr/base/tf/token.h"
+#include "pxr/base/vt/value.h"
+#include "pxr/imaging/cameraUtil/conformWindow.h"
 #include "pxr/imaging/cameraUtil/framing.h"
 #include "pxr/imaging/glf/simpleLight.h"
 #include "pxr/imaging/glf/simpleMaterial.h"
@@ -279,6 +281,19 @@ void SetCameraState(UsdImagingGLEngine* engine, const GfFrustum& frustum) {
         frustum.ComputeProjectionMatrix());
 }
 
+RenderCameraState MakeRenderCameraState(
+    const GfFrustum& frustum,
+    int width,
+    int height) {
+    RenderCameraState state;
+    state.viewMatrix = frustum.ComputeViewMatrix();
+    state.projectionMatrix = frustum.ComputeProjectionMatrix();
+    state.width = width;
+    state.height = height;
+    state.valid = width > 0 && height > 0;
+    return state;
+}
+
 void SetCameraLightState(
     UsdImagingGLEngine* engine,
     const GfFrustum& frustum,
@@ -397,6 +412,7 @@ bool HydraCaptureEngine::ConfigureCamera(
     int height,
     std::string* status,
     std::string* error) {
+    cameraState_ = RenderCameraState();
     SdfPath cameraPath;
     UsdGeomCamera sceneCamera;
     bool useSceneCamera = false;
@@ -430,11 +446,21 @@ bool HydraCaptureEngine::ConfigureCamera(
         SetError(status, "Using camera: " + cameraPath.GetString());
     } else {
         cameraFrustum = MakeDefaultCameraFrustum(stage, width, height, renderTime);
-        SetCameraState(engine_.get(), cameraFrustum);
         SetError(status, "Using generated default camera.");
+    }
+    const double aspectRatio =
+        height > 0 ? static_cast<double>(width) / static_cast<double>(height) : 1.0;
+    CameraUtilConformWindow(&cameraFrustum, CameraUtilMatchHorizontally, aspectRatio);
+    cameraState_ = MakeRenderCameraState(cameraFrustum, width, height);
+    if (!useSceneCamera) {
+        SetCameraState(engine_.get(), cameraFrustum);
     }
     SetCameraLightState(engine_.get(), cameraFrustum, cameraLightEnabled);
     return true;
+}
+
+const RenderCameraState& HydraCaptureEngine::GetCameraState() const {
+    return cameraState_;
 }
 
 void HydraCaptureEngine::ConfigureViewport(int width, int height) {
@@ -461,6 +487,34 @@ HydraRenderResult HydraCaptureEngine::Render(
 
 HdRenderBuffer* HydraCaptureEngine::GetAovRenderBuffer(const std::string& aov) {
     return engine_->GetAovRenderBuffer(TfToken(aov));
+}
+
+bool HydraCaptureEngine::InvokeRendererCommand(
+    const TfToken& command,
+    const HdCommandArgs& args,
+    std::string* error) {
+    if (!engine_) {
+        SetError(error, "Cannot invoke renderer command before engine initialization.");
+        return false;
+    }
+
+    if (!engine_->InvokeRendererCommand(command, args)) {
+        std::ostringstream out;
+        out << "Failed to invoke renderer command: " << command.GetString();
+        const HdCommandArgs::const_iterator filePathIt = args.find("filePath");
+        if (filePathIt != args.end()) {
+            out << " (filePath=";
+            if (filePathIt->second.IsHolding<std::string>()) {
+                out << filePathIt->second.UncheckedGet<std::string>();
+            } else {
+                out << filePathIt->second.GetTypeName();
+            }
+            out << ")";
+        }
+        SetError(error, out.str());
+        return false;
+    }
+    return true;
 }
 
 std::string HydraCaptureEngine::AvailableAovs() const {

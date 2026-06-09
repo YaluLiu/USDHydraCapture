@@ -39,6 +39,12 @@ cmake --build build-codex
 --height <int>           渲染高度。默认值：720。
 --aov <token>            要输出的 AOV token，可重复指定。
 --max-iterations <int>   渲染循环上限。默认值：1。
+--lidar-point-cloud <csv>
+                          读取 hdRobot 导出的 LiDAR CSV，并叠加到 color AOV。
+--export-lidar-point-cloud <csv>
+                          通过 renderer command 导出 LiDAR CSV，再叠加到 color AOV。
+--lidar-overlay-point-radius <int>
+                          LiDAR 叠加点半径，单位像素。默认值：2。
 ```
 
 工具不接受 `--renderer-plugin` 和旧的位置参数。Renderer plugin token 必须来自
@@ -66,6 +72,36 @@ cmake --build build-codex
 ```bash
 ./run.sh /path/to/scene.usd hdStorm /tmp/hydra_capture --aov color
 ```
+
+## 示例：LiDAR 点云叠加到 color
+
+如果已经有 hdRobot `exportLidarPointCloud` command 导出的 CSV，可以在写出
+`color` AOV 前叠加点云：
+
+```bash
+./build-codex/hydra_capture \
+  --renderer-config config/plugins/hdRobot/plugin.json \
+  --usd /path/to/scene.usd \
+  --output-dir /tmp/hydra_capture \
+  --aov color \
+  --lidar-point-cloud /path/to/lidar_point_cloud.csv
+```
+
+也可以让当前渲染进程先调用 hdRobot renderer command 导出 CSV，再使用该 CSV
+叠加。这个参数只对支持 `exportLidarPointCloud` command 的 render delegate 有意义：
+
+```bash
+./build-codex/hydra_capture \
+  --renderer-config config/plugins/hdRobot/plugin.json \
+  --usd /path/to/scene.usd \
+  --output-dir /tmp/hydra_capture \
+  --aov color \
+  --export-lidar-point-cloud /tmp/hydra_capture/lidar_point_cloud.csv
+```
+
+LiDAR CSV 的 `x,y,z` 字段按 world-space 坐标处理。叠加只修改 `color` AOV；
+其他 AOV 仍按原逻辑写出。初版不做深度遮挡，只把投影到输出相机视野内的
+`valid && hit` 点用青色方块覆盖到图片上。
 
 按 renderer 配置里的默认 AOV，输出会写到：
 
@@ -145,9 +181,18 @@ AOV 文件名会保留 ASCII 字母、数字、`_`、`-` 和 `.`。其他字符�
   把 AOV token 转成安全文件名，并生成输出路径。
 - `src/renderer_settings.*`：renderer setting 应用模块。把 JSON 值转换成
   `pxr::VtValue`，再设置到 `UsdImagingGLEngine`。
+- `src/hydra_capture_engine.*`：Hydra runtime 封装模块。负责 GL context、
+  `UsdImagingGLEngine`、renderer plugin/AOV/camera/viewport/render 调用，并保存
+  当前输出相机的 view/projection/尺寸供 CPU overlay 使用。
+- `src/image_output.*`：图像输出模块。把 Hydra render buffer 转成 top-left
+  origin 的 `Rgba8Image`，并写出 PNG/PPM 等 Hio 支持的图片格式。
+- `src/lidar_point_cloud.*`：hdRobot LiDAR CSV 读取模块。解析 quoted CSV 字段，
+  只输出 `valid && hit` 的 world-space 点。
+- `src/lidar_overlay.*`：LiDAR CPU overlay 模块。使用当前输出相机矩阵把
+  world-space 点投影到 color 图像并覆盖绘制。
 - `src/main.cpp`：可执行程序集成层。负责创建 GL context、打开 USD stage、
-  选择相机、配置 renderer、执行渲染、把 Hydra render buffer 转成 RGBA8，并写出
-  图片文件。
+  选择相机、配置 renderer、执行渲染、按需导出/读取 LiDAR CSV、把点云叠加到
+  color AOV，并写出图片文件。
 
 ## 渲染流程
 
@@ -161,4 +206,9 @@ AOV 文件名会保留 ASCII 字母、数字、`_`、`-` 和 `.`。其他字符�
 7. 配置 `UsdImagingGLEngine` 的 renderer plugin、settings、AOV、渲染尺寸和
    framing。
 8. 渲染到收敛或达到 `--max-iterations`。
-9. 读取每个 AOV render buffer，并写到对应输出路径。
+9. 如果传入 `--export-lidar-point-cloud`，调用当前 render delegate 的
+   `exportLidarPointCloud` command 导出 CSV。
+10. 如果传入 LiDAR overlay 参数且最终 AOV 列表包含 `color`，读取 CSV 中的
+    `valid && hit` 点。
+11. 读取每个 AOV render buffer。`color` AOV 在写图前可叠加 LiDAR 点云，其他
+    AOV 直接写到对应输出路径。

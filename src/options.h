@@ -9,11 +9,14 @@ struct Options {
     std::string usdPath;
     std::string outputDir;
     std::string cameraPath;
+    std::string lidarPointCloudPath;
+    std::string exportLidarPointCloudPath;
     std::vector<std::string> aovOverrides;
     bool cameraLightEnabled = true;
     int width = 1280;
     int height = 720;
     int maxIterations = 1;
+    int lidarOverlayPointRadius = 2;
 };
 
 bool ParseArgs(int argc, char** argv, Options* options, std::string* error);

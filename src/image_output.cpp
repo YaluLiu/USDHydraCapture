@@ -382,14 +382,41 @@ bool WriteImage(
 
 }  // namespace
 
+bool ConvertRenderBufferToRGBA8(
+    HdRenderBuffer* renderBuffer,
+    Rgba8Image* image) {
+    if (!image) {
+        return false;
+    }
+
+    image->pixels.clear();
+    image->width = 0;
+    image->height = 0;
+    return ConvertRenderBufferToRGBA8(
+        renderBuffer,
+        &image->pixels,
+        &image->width,
+        &image->height);
+}
+
+bool WriteRGBA8Image(
+    const Rgba8Image& image,
+    const std::string& outputPath) {
+    if (image.width <= 0 || image.height <= 0 ||
+        image.pixels.size() !=
+            static_cast<size_t>(image.width) * static_cast<size_t>(image.height) * 4u) {
+        std::cerr << "Invalid RGBA8 image for " << outputPath << "\n";
+        return false;
+    }
+    return WriteImage(outputPath, image.width, image.height, image.pixels);
+}
+
 bool WriteRenderBufferImage(
     HdRenderBuffer* renderBuffer,
     const std::string& outputPath) {
-    std::vector<uint8_t> rgbaPixels;
-    int outWidth = 0;
-    int outHeight = 0;
-    if (!ConvertRenderBufferToRGBA8(renderBuffer, &rgbaPixels, &outWidth, &outHeight)) {
+    Rgba8Image image;
+    if (!ConvertRenderBufferToRGBA8(renderBuffer, &image)) {
         return false;
     }
-    return WriteImage(outputPath, outWidth, outHeight, rgbaPixels);
+    return WriteRGBA8Image(image, outputPath);
 }

@@ -41,7 +41,13 @@ void PrintUsage(std::ostream& out, const char* program) {
         << "  --width <int>            Render width (default: 1280)\n"
         << "  --height <int>           Render height (default: 720)\n"
         << "  --aov <token>            AOV to output; may be repeated\n"
-        << "  --max-iterations <int>   Max render iterations (default: 1)\n";
+        << "  --max-iterations <int>   Max render iterations (default: 1)\n"
+        << "  --lidar-point-cloud <csv>\n"
+        << "                           Overlay an existing hdRobot LiDAR CSV on color AOV\n"
+        << "  --export-lidar-point-cloud <csv>\n"
+        << "                           Export hdRobot LiDAR CSV, then overlay it on color AOV\n"
+        << "  --lidar-overlay-point-radius <int>\n"
+        << "                           LiDAR overlay point radius in pixels (default: 2)\n";
 }
 
 bool ParseArgs(int argc, char** argv, Options* options, std::string* error) {
@@ -83,6 +89,14 @@ bool ParseArgs(int argc, char** argv, Options* options, std::string* error) {
             if (!requireValue(arg, &options->cameraPath)) {
                 return false;
             }
+        } else if (arg == "--lidar-point-cloud") {
+            if (!requireValue(arg, &options->lidarPointCloudPath)) {
+                return false;
+            }
+        } else if (arg == "--export-lidar-point-cloud") {
+            if (!requireValue(arg, &options->exportLidarPointCloudPath)) {
+                return false;
+            }
         } else if (arg == "--disableCameraLight") {
             options->cameraLightEnabled = false;
         } else if (arg == "--aov") {
@@ -114,6 +128,18 @@ bool ParseArgs(int argc, char** argv, Options* options, std::string* error) {
                 SetError(
                     error,
                     "Invalid --max-iterations: expected positive integer, got " + value);
+                return false;
+            }
+        } else if (arg == "--lidar-overlay-point-radius") {
+            if (!requireValue(arg, &value)) {
+                return false;
+            }
+            if (!ParseInt(value, &options->lidarOverlayPointRadius) ||
+                options->lidarOverlayPointRadius <= 0) {
+                SetError(
+                    error,
+                    "Invalid --lidar-overlay-point-radius: expected positive integer, got " +
+                        value);
                 return false;
             }
         } else {

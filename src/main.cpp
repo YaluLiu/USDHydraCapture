@@ -1,13 +1,18 @@
 #include "aov_output.h"
 #include "hydra_capture_engine.h"
 #include "image_output.h"
+#include "lidar_overlay.h"
+#include "lidar_point_cloud.h"
 #include "options.h"
 #include "renderer_config.h"
 
 #include "pxr/pxr.h"
 
+#include "pxr/base/tf/token.h"
+#include "pxr/base/vt/value.h"
 #include "pxr/usd/usd/stage.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -16,6 +21,14 @@
 #include <vector>
 
 PXR_NAMESPACE_USING_DIRECTIVE
+
+namespace {
+
+bool HasAov(const std::vector<std::string>& aovs, const std::string& target) {
+    return std::find(aovs.begin(), aovs.end(), target) != aovs.end();
+}
+
+}  // namespace
 
 int main(int argc, char** argv) {
     Options options;
@@ -108,6 +121,37 @@ int main(int argc, char** argv) {
               << (renderResult.converged ? " (converged)" : " (stopped by max iterations)")
               << "\n";
 
+    const std::string overlayCsvPath =
+        !options.lidarPointCloudPath.empty()
+            ? options.lidarPointCloudPath
+            : options.exportLidarPointCloudPath;
+    const bool overlayRequested = !overlayCsvPath.empty();
+    const bool colorAovRequested = HasAov(finalAovs, "color");
+    std::vector<LidarPointSample> lidarPoints;
+    bool overlayEnabled = false;
+    if (overlayRequested && !colorAovRequested) {
+        std::cout << "LiDAR overlay skipped because final AOV list does not include color.\n";
+    } else if (overlayRequested) {
+        if (!options.exportLidarPointCloudPath.empty()) {
+            HdCommandArgs args;
+            args["filePath"] = VtValue(options.exportLidarPointCloudPath);
+            if (!hydraEngine.InvokeRendererCommand(
+                    TfToken("exportLidarPointCloud"),
+                    args,
+                    &error)) {
+                std::cerr << error << "\n";
+                return EXIT_FAILURE;
+            }
+        }
+        if (!ReadLidarPointCloudCsv(overlayCsvPath, &lidarPoints, &error)) {
+            std::cerr << error << "\n";
+            return EXIT_FAILURE;
+        }
+        overlayEnabled = true;
+        std::cout << "Read LiDAR point cloud CSV: " << overlayCsvPath << "\n";
+        std::cout << "LiDAR valid hit points: " << lidarPoints.size() << "\n";
+    }
+
     std::vector<std::filesystem::path> savedPaths;
     for (const std::string& aov : finalAovs) {
         HdRenderBuffer* renderBuffer = hydraEngine.GetAovRenderBuffer(aov);
@@ -122,7 +166,28 @@ int main(int argc, char** argv) {
             usdPath,
             aov,
             ResolveAovOutputExt(aov, rendererConfig));
-        if (!WriteRenderBufferImage(renderBuffer, outputPath.string())) {
+        if (overlayEnabled && aov == "color") {
+            Rgba8Image image;
+            if (!ConvertRenderBufferToRGBA8(renderBuffer, &image)) {
+                std::cerr << "Failed to convert color AOV to RGBA8 for LiDAR overlay.\n";
+                return EXIT_FAILURE;
+            }
+            LidarOverlayOptions overlayOptions;
+            overlayOptions.pointRadiusPixels = options.lidarOverlayPointRadius;
+            const size_t drawnPoints = DrawLidarPointOverlay(
+                hydraEngine.GetCameraState(),
+                lidarPoints,
+                overlayOptions,
+                &image);
+            std::cout << "LiDAR overlay drawn points: " << drawnPoints
+                      << " of " << lidarPoints.size() << "\n";
+            std::cout << "LiDAR overlay color output: " << outputPath.string() << "\n";
+            if (!WriteRGBA8Image(image, outputPath.string())) {
+                std::cerr << "Failed to write AOV '" << aov
+                          << "' to " << outputPath << "\n";
+                return EXIT_FAILURE;
+            }
+        } else if (!WriteRenderBufferImage(renderBuffer, outputPath.string())) {
             std::cerr << "Failed to write AOV '" << aov
                       << "' to " << outputPath << "\n";
             return EXIT_FAILURE;
